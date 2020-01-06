@@ -1,0 +1,7 @@
+javascript/*/node_modules/
+elixir/*/_build/
+erlang/*/_build/
+python/*/*.pyc
+c/*/tests.out.dSYM/
+c/*/tests.out
+c/*/test/vendor/
