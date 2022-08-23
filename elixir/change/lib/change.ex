@@ -1,6 +1,5 @@
 defmodule Change do
   @doc """
-    FAIL
     Determine the least number of coins to be given to the user such
     that the sum of the coins' value would equal the correct amount of change.
     It returns {:error, "cannot change"} if it is not possible to compute the
@@ -17,44 +16,62 @@ defmodule Change do
   """
 
   @spec generate(list, integer) :: {:ok, list} | {:error, String.t()}
-
-  def generate(_, target) when target < 0, do: {:error, "cannot change"}
-  def generate(_, 0), do: {:ok, []}
   def generate(coins, target) do
+    {:ok, _pid} = VendingMachine.start_link()
+
     coins
     |> Enum.reverse()
-    |> make_change(target, [], coins, target)
-    |> case do
-      [] -> {:error, "cannot change"}
-      change -> {:ok, change}
-    end
+    |> make_change(target)
   end
 
-  defp make_change([], 0, change, _, _) do
-    change
+  defp make_change(_coins, 0), do: {:ok, VendingMachine.get()}
+
+  defp make_change([], _target), do: {:error, "cannot change"}
+
+  defp make_change(_coins, target) when target < 0, do: {:error, "cannot change"}
+
+  defp make_change(coins, target) do
+    # coins = [4, 5]
+    # expected = [4, 4, 4, 5, 5, 5]
+    # assert Change.generate(coins, 27) == {:ok, expected}
+
+
+    Enum.map(coins, fn coin ->
+      cond do
+        coin > target ->
+          # IO.inspect({coin, target}, label: "\n too big")
+          make_change(List.delete_at(coins, 0), target)
+
+        coin <= target ->
+          remaining = target - coin
+          # IO.inspect({coin, target, remaining}, label: "\n can make change")
+
+          if coin <= remaining do
+            IO.inspect({coin, target, remaining}, label: "\n can make change with same coin")
+            VendingMachine.put(coin)
+            make_change(coins, remaining)
+          else
+            IO.inspect({coin, target, remaining}, label: "\n can make change with new coin")
+
+            make_change(List.delete_at(coins, 0), target - coin)
+          end
+      end
+    end)
+  end
+end
+
+defmodule VendingMachine do
+  use Agent
+
+  def start_link() do
+    Agent.start_link(fn -> [] end, name: __MODULE__)
   end
 
-  defp make_change([], _, [], _, _) do
-    []
+  def get do
+    Agent.get(__MODULE__, & &1)
   end
 
-  defp make_change([], _, [_ | [_ | _]], _, _) do
-    []
-  end
-
-  defp make_change([], _, [_ | []] = change, initial_coins, initial_target) do
-    generate(initial_coins -- change, initial_target)
-  end
-
-  # defp make_change([], target, [_ | [_ | _]], [smallest_coin | _], _) when target < smallest_coin do
-  #   []
-  # end
-
-  defp make_change([coin | rest], target, change, initial_coins, initial_target) when coin > target do
-    make_change(rest, target, change, initial_coins, initial_target)
-  end
-
-  defp make_change([coin | _] = coins, target, change, initial_coins, initial_target) when target >= coin do
-    make_change(coins, target - coin, [coin] ++ change, initial_coins, initial_target)
+  def put(value) do
+    Agent.update(__MODULE__, fn machine -> [value | machine] end)
   end
 end
